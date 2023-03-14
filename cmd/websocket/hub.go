@@ -5,7 +5,6 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"sync"
@@ -19,13 +18,16 @@ type Hub struct {
 	rooms sync.Map
 
 	startAt time.Time
+
+	destroyedRooms []*RoomInfo
 }
 
 func newHub() *Hub {
 	return &Hub{startAt: time.Now()}
 }
 
-func (h *Hub) getRoom(roomId string) *Room {
+func (h *Hub) getOrNewRoom(roomId string) *Room {
+	// TODO lock
 	if room, ok := h.rooms.Load(roomId); ok {
 		return room.(*Room)
 	}
@@ -37,37 +39,42 @@ func (h *Hub) getRoom(roomId string) *Room {
 func (h *Hub) newRoom(roomId string) *Room {
 	info := &RoomInfo{
 		Id:      roomId,
-		Name:    "room" + roomId,
+		Name:    "room-" + roomId,
 		StartAt: time.Now(),
 	}
 	room := &Room{
 		hub:       h,
 		info:      info,
 		clients:   make(map[*Client]struct{}),
-		broadcast: make(chan []byte),
+		broadcast: make(chan []byte, 256),
 		enter:     make(chan *Client),
 		leave:     make(chan *Client),
+	}
+	room.msgSystem = &NC{
+		room: room,
+		js:   js,
 	}
 	go room.run()
 	return room
 }
 
-func (h *Hub) deleteRoom(roomId string) {
+func (h *Hub) deleteRoom(roomId string, info *RoomInfo) {
+	h.destroyedRooms = append(h.destroyedRooms, info)
 	h.rooms.Delete(roomId)
 }
 
 // clientEnter handles websocket requests from the peer.
-func (h *Hub) clientEnter(w http.ResponseWriter, r *http.Request) {
+func (h *Hub) clientEnter(w http.ResponseWriter, r *http.Request, roomId string) {
+	uniq := randStringBytesMaskImprSrcSB(10)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	vars := mux.Vars(r)
-	room := h.getRoom(vars["roomId"])
+	room := h.getOrNewRoom(roomId)
 
-	client := &Client{room: room, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{room: room, conn: conn, send: make(chan []byte, 1024), uniq: uniq}
 	room.enter <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in
@@ -77,21 +84,27 @@ func (h *Hub) clientEnter(w http.ResponseWriter, r *http.Request) {
 }
 
 type ReportRoomInfo struct {
-	RoomName  string `json:"room_name"`
-	ClientNum uint   `json:"client_num"`
-	MsgNum    uint   `json:"msg_num"`
-	StartAt   string `json:"start_at"`
+	RoomName  string   `json:"room_name"`
+	ClientNum uint     `json:"client_num"`
+	MsgNum    uint     `json:"msg_num"`
+	StartAt   string   `json:"start_at"`
+	Clients   []string `json:"clients"`
 }
 
 func (h *Hub) getRoomInfo() []ReportRoomInfo {
 	var roomInfo []ReportRoomInfo
 	h.rooms.Range(func(key, value interface{}) bool {
 		room := value.(*Room)
+		var clients []string
+		for client := range room.clients {
+			clients = append(clients, client.uniq)
+		}
 		roomInfo = append(roomInfo, ReportRoomInfo{
 			RoomName:  room.info.Name,
 			ClientNum: room.info.ClientNum,
 			MsgNum:    room.info.MsgNum,
 			StartAt:   room.info.StartAt.Format("2006-01-02 15:04:05"),
+			Clients:   clients,
 		})
 		return true
 	})

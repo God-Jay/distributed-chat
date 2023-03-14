@@ -49,6 +49,9 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// TODO delete
+	uniq string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -73,7 +76,8 @@ func (c *Client) readPump() {
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.room.broadcast <- message
+		c.room.msgSystem.publish(message)
+		//c.room.broadcast <- message
 	}
 }
 

@@ -1,6 +1,15 @@
-version: '3'
+version: '3.9'
 
 services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    ports:
+      - "8888:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - god-jay-chat-net
+
   reverse-proxy:
     # The official v2 Traefik docker image
     image: traefik:v2.9
@@ -14,20 +23,36 @@ services:
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - god-jay-chat-net
 
   web:
     # A container that exposes an API to show its IP address
     image: god-jay-web
-    command: ["./web"]
+    command: [ "./web" ]
     labels:
       - traefik.http.routers.web.rule=Host(`web.localhost`)
       - traefik.http.services.web-service.loadbalancer.server.port=81
-
+    networks:
+      - god-jay-chat-net
 
   ws:
     # A container that exposes an API to show its IP address
     image: god-jay-ws
-    command: ["./websocket"]
+    command: [ "./websocket" ]
     labels:
       - traefik.http.routers.ws.rule=Host(`ws.localhost`)
       - traefik.http.services.ws-service.loadbalancer.server.port=8081
+    networks:
+      - god-jay-chat-net
+    depends_on:
+      - nats
+    environment:
+      - VIRTUAL_HOST=ws.localhost
+      - VIRTUAL_PORT=8081
+
+
+networks:
+  god-jay-chat-net:
+    name: god-jay-chat-net
+    driver: bridge

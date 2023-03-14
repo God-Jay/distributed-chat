@@ -5,34 +5,39 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"log"
-	"net/http"
+	//_ "net/http/pprof"
 )
+
+var totalMsg int64
+var pub int64
 
 func main() {
 	flag.Parse()
 
 	hub := newHub()
 
-	r := mux.NewRouter()
-
-	r.HandleFunc("/ws/{roomId}", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("get...", r.URL)
-		hub.clientEnter(w, r)
+	r := gin.Default()
+	r.GET("/ws/:roomId", func(c *gin.Context) {
+		hub.clientEnter(c.Writer, c.Request, c.Param("roomId"))
 	})
-
-	r.HandleFunc("/roomInfo", func(w http.ResponseWriter, r *http.Request) {
+	r.GET("/roomInfo", func(c *gin.Context) {
 		roomInfo := hub.getRoomInfo()
-		marshal, _ := json.Marshal(roomInfo)
-		w.Write(marshal)
+		c.JSON(200, struct {
+			DestroyedRooms []*RoomInfo      `json:"destroyed_rooms"`
+			Rooms          []ReportRoomInfo `json:"rooms"`
+			TotalMsg       int64            `json:"total_msg"`
+			Pub            int64            `json:"pub"`
+		}{
+			DestroyedRooms: hub.destroyedRooms,
+			Rooms:          roomInfo,
+			TotalMsg:       totalMsg,
+			Pub:            pub,
+		})
 	})
-
-	http.Handle("/", r)
-
-	err := http.ListenAndServe(":8081", nil)
+	err := r.Run(":8081")
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
