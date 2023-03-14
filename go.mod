@@ -1,4 +1,4 @@
-module distributed-chat
+module github.com/god-jay/distributed-chat
 
 go 1.18
 
