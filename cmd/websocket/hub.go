@@ -20,6 +20,8 @@ type Hub struct {
 	startAt time.Time
 
 	destroyedRooms []*RoomInfo
+
+	sync.RWMutex
 }
 
 func newHub() *Hub {
@@ -27,7 +29,14 @@ func newHub() *Hub {
 }
 
 func (h *Hub) getOrNewRoom(roomId string) *Room {
-	// TODO lock
+	h.RLock()
+	if room, ok := h.rooms.Load(roomId); ok {
+		return room.(*Room)
+	}
+	h.RUnlock()
+
+	h.Lock()
+	defer h.Unlock()
 	if room, ok := h.rooms.Load(roomId); ok {
 		return room.(*Room)
 	}
