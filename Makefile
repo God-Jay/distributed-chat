@@ -15,7 +15,7 @@ build-dockerfile:
 
 docker-compose:
 	#docker compose -p god-jay-chat -f docker-compose.yml -f docker-compose.kafka.yml up -d --scale ws=3
-	docker compose -p god-jay-chat -f docker-compose.yml -f docker-compose.nats.yml up -d --scale ws=3
+	docker compose -p god-jay-chat -f docker-compose.yml -f docker-compose.nats.yml -f docker-compose.prom-graf.yml up -d --scale ws=3
 
 
 ### test api
@@ -43,3 +43,6 @@ rm-build-go:
 rm-build-dockerfile:
 	docker rmi god-jay-web || true
 	docker rmi god-jay-ws || true
+
+prometheus-grafana:
+	cd ./docker/prometheus-grafana && make

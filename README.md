@@ -19,7 +19,7 @@ then save them
 
 ### send request
 
-Enter `web.localhost` in your browser
+Enter [web.localhost](http://web.localhost) in your browser
 
 ## run test
 
@@ -31,3 +31,7 @@ its connect the three `god-jay-chat-ws-*` containers as the ws server throw the 
 
 ```make run-k6-nginx``` will use the `test/script-nginx.js` file for k6 test,
 its connect the three `god-jay-chat-ws-*` containers as the ws server throw the nginx container.
+
+## prometheus & grafana
+
+Enter [localhost:3000](http://localhost:3000) in your browser, default username is `admin`, and password is `admin`.

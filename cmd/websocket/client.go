@@ -77,6 +77,8 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		c.room.msgSystem.publish(message)
+
+		MsgSent.Inc()
 		//c.room.broadcast <- message
 	}
 }
@@ -108,11 +110,15 @@ func (c *Client) writePump() {
 			}
 			w.Write(message)
 
+			MsgCount.Inc()
+
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				w.Write(newline)
 				w.Write(<-c.send)
+
+				MsgCount.Inc()
 			}
 
 			if err := w.Close(); err != nil {

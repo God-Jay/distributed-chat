@@ -1,0 +1,24 @@
+version: '3.9'
+
+services:
+  prometheus:
+    image: bitnami/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus-grafana/prometheus.yml:/opt/bitnami/prometheus/conf/prometheus.yml
+    networks:
+      - god-jay-chat-net
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./docker/prometheus-grafana/grafana-provision/datasource.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml
+      - ./docker/prometheus-grafana/grafana-provision/dashboard.yaml:/etc/grafana/provisioning/dashboards/prometheus.yaml
+      - ./docker/prometheus-grafana/grafana-provision/websocket.json:/var/lib/grafana/dashboards/websocket.json
+    depends_on:
+      - prometheus
+    networks:
+      - god-jay-chat-net
